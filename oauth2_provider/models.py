@@ -29,7 +29,11 @@ class ClientSecretField(models.CharField):
     def pre_save(self, model_instance, add):
         if oauth2_settings.CLIENT_SECRET_HASHER:
             plain_secret = getattr(model_instance, self.attname)
-            if "$" not in plain_secret:  # not yet hashed
+            # we want to avoid re-hashing if the model_instance is being re-saved,
+            # so since the Django password hashing scheme uses exactly 3 $ characters
+            # and $ is not part of the default client_secret character set, this is a solid
+            # indication this is the first time we're saving.
+            if plain_secret.count("$") != 3:
                 hashed_secret = make_password(
                     plain_secret, salt=model_instance.client_id, hasher=oauth2_settings.CLIENT_SECRET_HASHER
                 )
